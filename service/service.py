@@ -4,7 +4,7 @@ import pandas as pd
 
 MODEL_PATH = (
     Path(__file__)
-    .resolve
+    .resolve()
     .parents[1]
     /"model/pipeline.joblib"
 )
