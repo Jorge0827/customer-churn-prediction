@@ -1,157 +1,189 @@
-# 📡 Predicción de Churn en Telecomunicaciones
+# 📊 Customer Churn Prediction (Telco) — End‑to‑End
 
-> **Proyecto real:** Análisis y predicción de cancelación de clientes en una empresa de telecomunicaciones. Enfoque profesional: desde el entendimiento del negocio hasta el modelado, siguiendo el flujo real de un Data Scientist.
+Proyecto de **predicción de churn** (cancelación) en telecomunicaciones con un flujo completo:
+
+- **ETL / limpieza** y one‑hot encoding
+- **Entrenamiento** de un `Pipeline` de scikit‑learn (escalado + regresión logística)
+- **API** de predicción con FastAPI (`/predict`)
+- **Interfaz** visual con Streamlit (para probar el modelo sin escribir JSON)
 
 ---
 
-## 🎯 Contexto del negocio
+## 🎯 Objetivo
 
-Una empresa de telecomunicaciones está **perdiendo clientes cada mes**. La gerencia necesita respuestas accionables:
+Predecir la probabilidad de churn de un cliente y devolver:
 
-| Pregunta de negocio | Objetivo |
-|--------------------|----------|
-| ¿Qué tipo de clientes se están yendo? | Segmentación y perfiles de riesgo |
-| ¿Qué variables influyen más en la cancelación? | Drivers del churn |
-| ¿Podemos predecir qué cliente está en riesgo? | Modelo predictivo |
-| ¿Qué estrategia podríamos recomendar? | Acciones y recomendaciones |
-
-Este no es un ejercicio académico: es un **problema real de negocio** abordado con criterio profesional.
+- `prediction`: 0 (no churn) / 1 (churn)
+- `probability`: probabilidad estimada de churn \([0, 1]\)
 
 ---
 
 ## 📦 Dataset
 
-- **Nombre:** [Telco Customer Churn](https://www.kaggle.com/datasets/blastchar/telco-customer-churn) (Kaggle)
-- **Por qué este dataset:** variables numéricas y categóricas, valores faltantes, features de negocio (contrato, internet, facturación, antigüedad) y espacio para un EDA profundo antes de ML.
+Dataset base: **Telco Customer Churn** (Kaggle).
 
-**Ubicación en el repo:** `data/WA_Fn-UseC_-Telco-Customer-Churn.csv`
+- **Archivo original**: `data/WA_Fn-UseC_-Telco-Customer-Churn.csv`
+- El pipeline limpia y transforma (dummies) para alimentar el modelo.
+
+> Nota: el entrenamiento usa `pd.get_dummies(..., drop_first=True)`, por lo que las columnas finales son dummies con nombres como `Contract_Two year`, `OnlineSecurity_No internet service`, etc.
 
 ---
 
-## 🗂 Estructura del proyecto
+## 🧱 Stack / Tecnologías
 
-El trabajo se organiza en **6 fases**. El modelado (ML) llega solo después de dominar exploración, análisis y preparación de datos.
+- **Python** (recomendado 3.10+)
+- **Pandas / NumPy**
+- **scikit‑learn**
+- **FastAPI + Uvicorn**
+- **Streamlit**
+
+---
+
+## 🗂️ Estructura del proyecto (carpetas clave)
 
 ```
 customer-churn-prediction/
-├── data/                    # Dataset Telco Customer Churn
-├── EDA/                     # Exploración y análisis
-│   ├── EDA_churn.ipynb      # EDA inicial y exploración
-│   └── univariate_bivariate_analysis.ipynb  # Análisis univariado y bivariado
-└── README.md
+├── api/
+│   ├── api.py               # FastAPI app + endpoint /predict
+│   └── schemas.py           # Esquemas Pydantic (entrada/salida)
+├── pipeline/
+│   └── data_pipeline.py     # load_data / clean_data / split_features_target
+├── service/
+│   └── service.py           # load_model / predict_from_features
+├── training/
+│   └── train.py             # entrenamiento + guardado pipeline.joblib
+├── model/
+│   └── pipeline.joblib      # artefacto entrenado (se genera al entrenar)
+├── data/
+│   ├── WA_Fn-UseC_-Telco-Customer-Churn.csv
+│   └── telco_churn_clean.csv (opcional/derivado)
+└── app.py                   # Streamlit UI
 ```
 
 ---
 
-## 🔎 Fase 1 — Entendimiento del problema
+## 🚀 Puesta en marcha
 
-Antes de abrir Python, se responde con criterio:
+### 1) Crear entorno e instalar dependencias
 
-- ¿Qué es **churn** y por qué es grave para la empresa?
-- ¿Qué tipo de variable es *Churn*? (binaria)
-- ¿Es un problema de **clasificación** o **regresión**?
-- ¿Cuál sería el **costo de equivocarnos** (falsos positivos vs falsos negativos)?
+```bash
+python -m venv .venv
+```
 
-Aquí se desarrolla **pensamiento crítico** y alineación con el negocio.
+Windows (PowerShell):
 
----
+```powershell
+.venv\Scripts\Activate.ps1
+```
 
-## 📊 Fase 2 — Exploración inicial (EDA nivel 1)
+Instalar:
 
-**Objetivo:** entender qué datos tenemos.
-
-- Cargar dataset, `shape`, tipos de datos
-- Identificar variables **numéricas** y **categóricas**
-- Valores nulos e inconsistencias
-- Preguntas clave: ¿columnas mal tipadas? ¿irrelevantes? ¿duplicados? ¿qué % de churn hay?
-
-**Herramientas:** estadística descriptiva, distribuciones, medidas de tendencia central y dispersión.
+```bash
+pip install -U pip
+pip install pandas scikit-learn joblib fastapi uvicorn streamlit pydantic
+```
 
 ---
 
-## 📈 Fase 3 — Análisis univariado y bivariado
+## 🏋️ Entrenar el modelo
 
-### Univariado
-- Histogramas (numéricas), barplots (categóricas), boxplots
-- Mediana vs media, detección de outliers
-- Preguntas: ¿*tenure* está sesgada? ¿mayoría con contrato mensual? ¿target balanceado?
+Entrena y guarda el pipeline en `model/pipeline.joblib`:
 
-### Bivariado (pensar como analista)
-- Cruzar variables con **Churn**: contrato, antigüedad, método de pago, cargo mensual, etc.
-- Identificar patrones, variables más influyentes, correlaciones y multicolinealidad
-- Herramientas: tablas cruzadas, heatmaps, correlaciones, análisis visual
+```bash
+python -m training.train
+```
+
+Al terminar verás métricas (classification report, matriz de confusión y ROC‑AUC).
 
 ---
 
-## 🧹 Fase 4 — Limpieza y ETL
+## 🔌 Ejecutar la API (FastAPI)
 
-Enfoque tipo **Data Engineer**:
+Desde la raíz del proyecto:
 
-- Corregir tipos de datos
-- Manejo de valores nulos
-- Encoding de variables categóricas
-- Escalado (y criterio: ¿antes o después del train/test split?)
-- Train/test split y balanceo de clases si aplica
+```bash
+uvicorn api.api:app --reload
+```
 
----
+Endpoints útiles:
 
-## 📊 Fase 5 — Feature engineering
-
-Los datos no se usan “tal cual”:
-
-- Ejemplos: `cliente_nuevo` (tenure &lt; 12), ratio `cargo_mensual / total_cargos`, agrupación de tipos de contrato, flag de alto gasto.
-- Objetivo: crear señales que el modelo pueda aprovechar.
+- **Health check**: `GET /health`
+- **Predicción**: `POST /predict`
+- **Swagger**: `GET /docs`
 
 ---
 
-## 🤖 Fase 6 — Modelado
+## 🧪 Ejemplo de request a `/predict`
 
-Solo cuando el problema y los datos están claros.
+El `POST /predict` espera un JSON con **las mismas columnas del CSV limpio/dummies** (los `alias` están alineados con esas columnas).
 
-- **Modelos:** Regresión logística, Árbol de decisión, Random Forest, XGBoost (opcional).
-- **Evaluación:** Accuracy, Precision, Recall, F1, matriz de confusión, curva ROC.
-- **Pregunta de negocio:** ¿Es más grave un falso positivo o un falso negativo? La respuesta guía la métrica y el umbral.
+Ejemplo (perfil de churn alto):
+
+```json
+{
+  "SeniorCitizen": 1,
+  "tenure": 1,
+  "MonthlyCharges": 110.0,
+  "TotalCharges": 110.0,
+  "gender_Male": 1,
+  "Partner_Yes": 0,
+  "Dependents_Yes": 0,
+  "PhoneService_Yes": 1,
+  "MultipleLines_No phone service": 0,
+  "MultipleLines_Yes": 1,
+  "InternetService_Fiber optic": 1,
+  "InternetService_No": 0,
+  "OnlineSecurity_No internet service": 0,
+  "OnlineSecurity_Yes": 0,
+  "OnlineBackup_No internet service": 0,
+  "OnlineBackup_Yes": 0,
+  "DeviceProtection_No internet service": 0,
+  "DeviceProtection_Yes": 0,
+  "TechSupport_No internet service": 0,
+  "TechSupport_Yes": 0,
+  "StreamingTV_No internet service": 0,
+  "StreamingTV_Yes": 1,
+  "StreamingMovies_No internet service": 0,
+  "StreamingMovies_Yes": 1,
+  "Contract_One year": 0,
+  "Contract_Two year": 0,
+  "PaperlessBilling_Yes": 1,
+  "PaymentMethod_Credit card (automatic)": 0,
+  "PaymentMethod_Electronic check": 1,
+  "PaymentMethod_Mailed check": 0
+}
+```
+
+Respuesta:
+
+```json
+{
+  "prediction": 1,
+  "probability": 0.89
+}
+```
 
 ---
 
-## 🧠 Qué se aprende con este proyecto
+## 🖥️ Ejecutar la interfaz (Streamlit)
 
-| Área | Contenido |
-|------|-----------|
-| Fundamentos | Estadística descriptiva, probabilidad aplicada, inferencia básica |
-| Datos | EDA profesional, limpieza real, visualización estratégica |
-| Modelado | Supervisado (clasificación), evaluación de modelos |
-| Negocio | Pensamiento crítico, storytelling con datos |
+La UI permite probar el modelo sin escribir JSON:
 
-Cuando llegues al ML, sabrás **por qué** lo usas, **cuándo** aplicarlo y **qué significa** el resultado. No solo “`.fit()` y listo”.
+```bash
+streamlit run app.py
+```
 
 ---
 
-## 📌 Flujo real de un Data Scientist
+## ⚙️ Notas sobre `threshold`
 
-Este proyecto replica el flujo típico en la industria:
+El proyecto usa un umbral (threshold) para convertir probabilidad en clase:
 
-1. Entender el problema de negocio  
-2. Explorar y entender los datos  
-3. Limpiar y preparar datos  
-4. Analizar patrones  
-5. Construir features  
-6. Modelar  
-7. Evaluar  
-8. Comunicar resultados  
+- `probability >= threshold` ⇒ `prediction = 1` (churn)
+- `probability < threshold` ⇒ `prediction = 0` (no churn)
 
-No es una ruta solo académica; es una **ruta profesional**.
+Actualmente el threshold usado en el servicio/API es **0.4** (ver `service/service.py` y `api/api.py`).
 
 ---
 
-## 🚀 Cómo usar este repositorio
 
-1. Clona el repo y crea un entorno virtual (recomendado).
-2. Instala dependencias (p. ej. `pandas`, `numpy`, `matplotlib`, `seaborn`, `scikit-learn`).
-3. Descarga el dataset [Telco Customer Churn](https://www.kaggle.com/datasets/blastchar/telco-customer-churn) y colócalo en `data/` si no está incluido.
-4. Sigue los notebooks en `EDA/` en orden para reproducir el análisis.
-5. Avanza por las fases 4–6 según tu plan (limpieza, feature engineering, modelado).
-
----
-
-*Proyecto alineado con la práctica real de Data Science en negocio.*
